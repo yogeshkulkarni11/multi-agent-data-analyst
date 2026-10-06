@@ -1,0 +1,9 @@
+customer_id,customer_name,segment,city
+C001,Acme Retail,Enterprise,Mumbai
+C002,Northstar Ltd,SMB,Delhi
+C003,HealthPlus,Enterprise,Bengaluru
+C004,Green Foods,SMB,Pune
+C005,FinServe,Enterprise,Hyderabad
+C006,Urban Living,SMB,Chennai
+C007,EastMart,SMB,Kolkata
+C008,Westline,Enterprise,Ahmedabad
