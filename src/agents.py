@@ -51,8 +51,20 @@ def _deterministic_sql(question: str) -> str:
     return "SELECT ROUND(SUM(revenue),2) AS total_revenue, COUNT(*) AS orders, ROUND(AVG(revenue),2) AS average_order_revenue FROM sales"
 
 
+def _llm_sql(question: str) -> str | None:
+    if not (ChatOpenAI and os.getenv("OPENAI_API_KEY")):
+        return None
+    model = ChatOpenAI(model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"), temperature=0)
+    prompt = f"""Convert the user's analytics question into one safe SQLite SELECT query.\nSchema: {schema()}\nRules: SELECT/WITH only; no writes; use exact column names; return SQL only.\nQuestion: {question}"""
+    response = model.invoke(prompt)
+    sql = response.content.strip().replace("```sql", "").replace("```", "").strip()
+    if sql.upper().startswith(("SELECT", "WITH")):
+        return sql
+    return None
+
+
 def data_agent(state: AnalystState) -> AnalystState:
-    sql = _deterministic_sql(state["question"])
+    sql = _llm_sql(state["question"]) or _deterministic_sql(state["question"])
     return {"sql": sql}
 
 
@@ -61,8 +73,7 @@ def sql_agent(state: AnalystState) -> AnalystState:
 
 
 def validation_agent(state: AnalystState) -> AnalystState:
-    issues = validate_result(state["result"])
-    return {"validation_issues": issues}
+    return {"validation_issues": validate_result(state["result"])}
 
 
 def analytics_agent(state: AnalystState) -> AnalystState:
@@ -81,8 +92,7 @@ def response_agent(state: AnalystState) -> AnalystState:
         return {"answer": "I can answer questions about the sample sales and customer data, such as revenue, orders, customers, products, categories, regions, and monthly trends."}
     if state.get("validation_issues"):
         return {"answer": "I could not produce a validated answer: " + "; ".join(state["validation_issues"])}
-    answer = state.get("analysis", "No analysis available.")
-    return {"answer": f"{answer}\n\nSQL used:\n{state.get('sql', '')}"}
+    return {"answer": f"{state.get('analysis', 'No analysis available.')}\n\nSQL used:\n{state.get('sql', '')}"}
 
 
 def _route(state: AnalystState) -> str:
